@@ -355,3 +355,28 @@ if [ -n "${CONFIG_KALLSYMS}" ]; then
 		exit 1
 	fi
 fi
+
+gen_btf()
+{
+	local pahole_ver
+
+	if ! [ -x "$(command -v pahole)" ]; then
+		echo >&2 "BTF: ${1}: pahole not found"
+		return 1
+	fi
+
+	pahole_ver=$(pahole --version | sed -E 's/v([0-9]+)\.([0-9]+)/\1\2/')
+	if [ "${pahole_ver}" -lt "116" ]; then
+		echo >&2 "BTF: ${1}: pahole version $pahole_ver is too old, need at least v1.16"
+		return 1
+	fi
+
+	vmlinux_link ${1}
+
+	echo " BTF     ${2}"
+	LLVM_OBJCOPY="${OBJCOPY}" pahole -J ${PAHOLE_FLAGS} ${1}
+
+	if [ -n "${DWARF_COMPRESS}" ]; then
+		${OBJCOPY} --compress-debug-sections=zlib ${1} 2>/dev/null
+	fi
+}
