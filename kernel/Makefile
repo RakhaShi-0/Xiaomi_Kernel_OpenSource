@@ -107,10 +107,15 @@ obj-$(CONFIG_TRACEPOINTS) += trace/
 obj-$(CONFIG_IRQ_WORK) += irq_work.o
 obj-$(CONFIG_CPU_PM) += cpu_pm.o
 obj-$(CONFIG_BPF) += bpf/
+obj-$(CONFIG_PERF_EVENTS) += events/
 obj-$(CONFIG_CFI_CLANG) += cfi.o
 obj-$(CONFIG_SHADOW_CALL_STACK) += scs.o
 
-obj-$(CONFIG_PERF_EVENTS) += events/
+# Stub __cfi_slowpath untuk module vendor yang butuh symbol ini
+# walau CONFIG_CFI_CLANG dimatikan di kernel ini
+ifndef CONFIG_CFI_CLANG
+obj-y += cfi_stub.o
+endif
 
 obj-$(CONFIG_USER_RETURN_NOTIFIER) += user-return-notifier.o
 obj-$(CONFIG_PADATA) += padata.o
