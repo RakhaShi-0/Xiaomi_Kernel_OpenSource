@@ -383,4 +383,15 @@ gen_btf()
 
 if [ -n "${CONFIG_DEBUG_INFO_BTF}" ]; then
 	gen_btf vmlinux vmlinux
+
+	if [ -n "${CONFIG_DEBUG_INFO_BTF}" ] && [ -f vmlinux ]; then
+		info BTFBIN .btf.vmlinux.bin.o
+		${OBJCOPY} --only-section=.BTF --set-section-flags .BTF=alloc -O binary vmlinux .btf.vmlinux.bin
+		${OBJCOPY} -I binary -O elf64-littleaarch64 -B aarch64 \
+			--rename-section .data=.BTF \
+			.btf.vmlinux.bin .btf.vmlinux.bin.o
+
+		info LD vmlinux
+		vmlinux_link .btf.vmlinux.bin.o vmlinux
+	fi
 fi
