@@ -380,3 +380,7 @@ gen_btf()
 		${OBJCOPY} --compress-debug-sections=zlib ${1} 2>/dev/null
 	fi
 }
+
+if [ -n "${CONFIG_DEBUG_INFO_BTF}" ]; then
+	gen_btf vmlinux vmlinux
+fi
