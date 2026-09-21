@@ -1272,8 +1272,9 @@ static int __init uname_spoof_setup(char *s)
 	return 1;
 }
 static const char * const uname_spoof_targets[] = {
-   	"",		/* kosong = spoof mati. Isi nama proses di sini */
-   };
+	"cat",
+	"toybox",
+};
 
 bool uname_should_spoof(void)
 {
