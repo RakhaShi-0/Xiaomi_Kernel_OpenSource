@@ -1251,6 +1251,39 @@ static int override_release(char __user *release, size_t len)
 	return ret;
 }
 
+/*
+ * Spoof selektif. Daftar nama proses (comm) yang dibohongi diberikan
+ * lewat kernel cmdline: uname_spoof=init,vintf,apexd
+ * Kosong / tidak diberikan = spoof mati (boot seperti kernel asli).
+ */
+#define UNAME_SPOOF_MAX	8
+static char uname_spoof_list[UNAME_SPOOF_MAX][TASK_COMM_LEN];
+static int uname_spoof_cnt;
+
+static int __init uname_spoof_setup(char *s)
+{
+	char *tok;
+
+	while ((tok = strsep(&s, ",")) && uname_spoof_cnt < UNAME_SPOOF_MAX) {
+		if (!*tok)
+			continue;
+		strlcpy(uname_spoof_list[uname_spoof_cnt++], tok, TASK_COMM_LEN);
+	}
+	return 1;
+}
+__setup("uname_spoof=", uname_spoof_setup);
+
+bool uname_should_spoof(void)
+{
+	int i;
+
+	for (i = 0; i < uname_spoof_cnt; i++)
+		if (!strncmp(current->comm, uname_spoof_list[i], TASK_COMM_LEN))
+			return true;
+	return false;
+}
+EXPORT_SYMBOL(uname_should_spoof);
+
 SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
 {
 	struct new_utsname tmp;
@@ -1258,6 +1291,13 @@ SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
 	down_read(&uts_sem);
 	memcpy(&tmp, utsname(), sizeof(tmp));
 	up_read(&uts_sem);
+	if (uname_should_spoof()) {
+		char rel[sizeof(tmp.release)];
+		const char *suffix = strchr(tmp.release, '-');
+
+		scnprintf(rel, sizeof(rel), "5.4.191%s", suffix ? suffix : "");
+		memcpy(tmp.release, rel, sizeof(tmp.release));
+	}
 	if (copy_to_user(name, &tmp, sizeof(tmp)))
 		return -EFAULT;
 
