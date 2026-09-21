@@ -1268,9 +1268,14 @@ static int __init uname_spoof_setup(char *s)
 		if (!*tok)
 			continue;
 		strlcpy(uname_spoof_list[uname_spoof_cnt++], tok, TASK_COMM_LEN);
+		pr_info("uname_spoof: registered target '%s'\n", uname_spoof_list[uname_spoof_cnt-1]);
 	}
+	pr_info("uname_spoof: total targets registered = %d\n", uname_spoof_cnt);
 	return 1;
 }
+
+__setup("uname_spoof=", uname_spoof_setup);
+
 static const char * const uname_spoof_targets[] = {
 	"cat",
 	"toybox",
@@ -1281,8 +1286,10 @@ bool uname_should_spoof(void)
 	int i;
 
 	for (i = 0; i < uname_spoof_cnt; i++)
-		if (!strncmp(current->comm, uname_spoof_list[i], TASK_COMM_LEN))
+		if (!strncmp(current->comm, uname_spoof_list[i], TASK_COMM_LEN)) {
+			pr_info("uname_spoof: MATCH comm='%s'\n", current->comm);
 			return true;
+		}
 	return false;
 }
 EXPORT_SYMBOL(uname_should_spoof);
