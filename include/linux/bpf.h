@@ -52,6 +52,15 @@ struct bpf_map_ops {
 	int (*map_check_btf)(const struct bpf_map *map,
 			     const struct btf_type *key_type,
 			     const struct btf_type *value_type);
+
+	/* Prepare synchronous flush of a bloom filter map. */
+	/* (not needed for 4.19, skip) */
+
+	/* mmap support for userspace producer/consumer ring buffer access */
+	int (*map_mmap)(struct bpf_map *map, struct vm_area_struct *vma);
+	/* poll support for ringbuf consumer wakeup */
+	__poll_t (*map_poll)(struct bpf_map *map, struct file *filp,
+			     struct poll_table_struct *pts);
 };
 
 struct bpf_map {
