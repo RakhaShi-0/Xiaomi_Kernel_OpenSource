@@ -1252,45 +1252,96 @@ static int override_release(char __user *release, size_t len)
 }
 
 /*
- * Spoof selektif. Daftar nama proses (comm) yang dibohongi diberikan
- * lewat kernel cmdline: uname_spoof=init,vintf,apexd
- * Kosong / tidak diberikan = spoof mati (boot seperti kernel asli).
+ * Spoof uname() release string secara luas untuk seluruh proses
+ * root/system (uid < UNAME_SPOOF_UID_CEIL), KECUALI proses yang ada
+ * di daftar exclude. Ini menghindari harus menebak satu-satu proses
+ * mana (netbpfload, netd, dst) yang membaca versi kernel untuk gate
+ * kompatibilitas Android 25Q2 (min kernel 5.4).
+ *
+ * Kontrol lewat kernel cmdline:
+ *   uname_spoof=off              -> matikan spoof sepenuhnya
+ *   uname_spoof=exclude:a,b,c    -> tambah proses ke exclude-list
+ * Tanpa cmdline param sama sekali -> spoof AKTIF default untuk semua
+ * uid < UNAME_SPOOF_UID_CEIL, exclude-list = default di bawah.
  */
-#define UNAME_SPOOF_MAX	8
-static char uname_spoof_list[UNAME_SPOOF_MAX][TASK_COMM_LEN];
-static int uname_spoof_cnt;
+#define UNAME_SPOOF_EXCLUDE_MAX	16
+#define UNAME_SPOOF_UID_CEIL	2000
+
+static bool uname_spoof_disabled;
+static char uname_spoof_exclude[UNAME_SPOOF_EXCLUDE_MAX][TASK_COMM_LEN];
+static int uname_spoof_exclude_cnt;
+
+/* Proses yang SELALU exclude dari spoof meski tidak disebut di cmdline:
+ * modul loader butuh versi ASLI supaya cari path modul yang benar.
+ */
+static const char * const uname_spoof_default_exclude[] = {
+	"modprobe",
+	"insmod",
+	"depmod",
+	"kmod",
+};
 
 static int __init uname_spoof_setup(char *s)
 {
 	char *tok;
 
-	while ((tok = strsep(&s, ",")) && uname_spoof_cnt < UNAME_SPOOF_MAX) {
-		if (!*tok)
-			continue;
-		strlcpy(uname_spoof_list[uname_spoof_cnt++], tok, TASK_COMM_LEN);
-		pr_info("uname_spoof: registered target '%s'\n", uname_spoof_list[uname_spoof_cnt-1]);
+	if (!strcmp(s, "off")) {
+		uname_spoof_disabled = true;
+		pr_info("uname_spoof: DISABLED via cmdline\n");
+		return 1;
 	}
-	pr_info("uname_spoof: total targets registered = %d\n", uname_spoof_cnt);
+
+	/* format: exclude:comm1,comm2,... */
+	if (!strncmp(s, "exclude:", 8)) {
+		s += 8;
+		while ((tok = strsep(&s, ",")) &&
+		       uname_spoof_exclude_cnt < UNAME_SPOOF_EXCLUDE_MAX) {
+			if (!*tok)
+				continue;
+			strlcpy(uname_spoof_exclude[uname_spoof_exclude_cnt++],
+				tok, TASK_COMM_LEN);
+			pr_info("uname_spoof: exclude target '%s'\n",
+				uname_spoof_exclude[uname_spoof_exclude_cnt - 1]);
+		}
+	}
+
+	pr_info("uname_spoof: total exclude targets = %d\n", uname_spoof_exclude_cnt);
 	return 1;
 }
 
 __setup("uname_spoof=", uname_spoof_setup);
 
-static const char * const uname_spoof_targets[] = {
-	"cat",
-	"toybox",
-};
-
-bool uname_should_spoof(void)
+static bool uname_comm_excluded(void)
 {
 	int i;
 
-	for (i = 0; i < uname_spoof_cnt; i++)
-		if (!strncmp(current->comm, uname_spoof_list[i], TASK_COMM_LEN)) {
-			pr_info("uname_spoof: MATCH comm='%s'\n", current->comm);
+	for (i = 0; i < ARRAY_SIZE(uname_spoof_default_exclude); i++)
+		if (!strncmp(current->comm, uname_spoof_default_exclude[i],
+			     TASK_COMM_LEN))
 			return true;
-		}
+
+	for (i = 0; i < uname_spoof_exclude_cnt; i++)
+		if (!strncmp(current->comm, uname_spoof_exclude[i], TASK_COMM_LEN))
+			return true;
+
 	return false;
+}
+
+bool uname_should_spoof(void)
+{
+	if (uname_spoof_disabled)
+		return false;
+
+	/* Apps (uid >= ceil) tidak pernah di-spoof: cosmetic "About phone"
+	 * dan lainnya harus tetap menampilkan versi asli.
+	 */
+	if (!uid_lt(current_uid(), KUIDT_INIT(UNAME_SPOOF_UID_CEIL)))
+		return false;
+
+	if (uname_comm_excluded())
+		return false;
+
+	return true;
 }
 EXPORT_SYMBOL(uname_should_spoof);
 
