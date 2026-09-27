@@ -513,14 +513,20 @@ static int map_create(union bpf_attr *attr)
 {
 	int numa_node = bpf_map_attr_numa_node(attr);
 	struct bpf_map *map;
-	int f_flags = 0;
+	int f_flags;
 	int err;
 
 	err = CHECK_ATTR(BPF_MAP_CREATE);
 	if (err)
 		return -EINVAL;
 
-	if (attr->numa_node != numa_node)
+	f_flags = bpf_get_file_flag(attr->map_flags);
+	if (f_flags < 0)
+		return f_flags;
+
+	if (numa_node != NUMA_NO_NODE &&
+	    ((unsigned int)numa_node >= nr_node_ids ||
+	     !node_online(numa_node)))
 		return -EINVAL;
 
 	/* find map type and init map: hashtable vs rbtree vs bloom vs ... */
@@ -596,7 +602,6 @@ free_map_nouncharge:
 	map->ops->map_free(map);
 	return err;
 }
-
 /* if error is returned, fd is released.
  * On success caller should complete fd access with matching fdput()
  */
