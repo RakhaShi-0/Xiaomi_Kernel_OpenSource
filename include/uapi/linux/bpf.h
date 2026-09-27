@@ -2341,15 +2341,24 @@ enum bpf_func_id {
 #define BPF_F_CURRENT_CPU		BPF_F_INDEX_MASK
 /* BPF_FUNC_perf_event_output for sk_buff input context. */
 #define BPF_F_CTXLEN_MASK		(0xfffffULL << 32)
-/* BPF_FUNC_ringbuf_output/reserve/submit/discard flags. */
-#define BPF_RB_NO_WAKEUP		(1ULL << 0)
-#define BPF_RB_FORCE_WAKEUP		(1ULL << 1)
 
-/* BPF_FUNC_ringbuf_query flags */
-#define BPF_RB_AVAIL_DATA	0
-#define BPF_RB_RING_SIZE	1
-#define BPF_RB_CONS_POS		2
-#define BPF_RB_PROD_POS		3
+enum {
+	BPF_RB_NO_WAKEUP		= (1ULL << 0),
+	BPF_RB_FORCE_WAKEUP		= (1ULL << 1),
+};
+
+enum {
+	BPF_RB_AVAIL_DATA = 0,
+	BPF_RB_RING_SIZE = 1,
+	BPF_RB_CONS_POS = 2,
+	BPF_RB_PROD_POS = 3,
+};
+
+enum {
+	BPF_RINGBUF_BUSY_BIT		= (1U << 31),
+	BPF_RINGBUF_DISCARD_BIT		= (1U << 30),
+	BPF_RINGBUF_HDR_SZ		= 8,
+};
 
 /* Mode for BPF_FUNC_skb_adjust_room helper. */
 enum bpf_adj_room_mode {
