@@ -460,7 +460,7 @@ BPF_CALL_2(bpf_ringbuf_submit, void *, sample, u64, flags)
 
 const struct bpf_func_proto bpf_ringbuf_submit_proto = {
 	.func		= bpf_ringbuf_submit,
-	.ret_type	= RET_VOID,
+	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_ALLOC_MEM,
 	.arg2_type	= ARG_ANYTHING,
 };
@@ -473,7 +473,7 @@ BPF_CALL_2(bpf_ringbuf_discard, void *, sample, u64, flags)
 
 const struct bpf_func_proto bpf_ringbuf_discard_proto = {
 	.func		= bpf_ringbuf_discard,
-	.ret_type	= RET_VOID,
+	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_ALLOC_MEM,
 	.arg2_type	= ARG_ANYTHING,
 };
