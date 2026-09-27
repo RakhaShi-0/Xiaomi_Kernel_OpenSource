@@ -515,7 +515,6 @@ static int map_create(union bpf_attr *attr)
 	struct bpf_map *map;
 	int f_flags;
 	int err;
-	u32 orig_flags; /* [TAMBAHAN 1] Variabel untuk simpan flag asli */
 
 	err = CHECK_ATTR(BPF_MAP_CREATE);
 	if (err)
@@ -524,19 +523,17 @@ static int map_create(union bpf_attr *attr)
 	if (attr->numa_node != numa_node)
 		return -EINVAL;
 
-	/* [TAMBAHAN 2] Simpan flag asli, lalu hapus semua flag modern (>64) 
-	 * agar lolos pengecekan ketat di Linux 4.19 (0x7F = batas aman 4.19) */
-	orig_flags = attr->map_flags;
-	attr->map_flags &= 0x7F;
+	/* Inisialisasi f_flags dari map_flags (handle BPF_F_RDONLY/WRONLY) */
+	f_flags = bpf_get_file_flag(attr->map_flags);
+	if (f_flags < 0)
+		return f_flags;
 
 	/* find map type and init map: hashtable vs rbtree vs bloom vs ... */
 	map = find_and_alloc_map(attr);
 	if (IS_ERR(map))
 		return PTR_ERR(map);
 
-	/* [TAMBAHAN 3] Kembalikan flag asli ke map struct agar saat
-	 * Android mengecek ulang map ini, flag 128 dkk tetap terbaca cocok */
-	map->map_flags = orig_flags;
+	/* (tidak ada orig_flags apapun di sini) */
 
 	err = bpf_obj_name_cpy(map->name, attr->map_name);
 	if (err)
