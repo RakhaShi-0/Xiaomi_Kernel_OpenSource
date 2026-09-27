@@ -102,6 +102,7 @@
 
 /* External variables not in a header file. */
 extern int suid_dumpable;
+extern int uname_spoof_enable;  /* Declared in kernel/sys.c */
 #ifdef CONFIG_COREDUMP
 extern int core_uses_pid;
 extern char core_pattern[];
@@ -121,6 +122,8 @@ extern int sysctl_nr_trim_pages;
 #ifdef CONFIG_LOCKUP_DETECTOR
 static int sixty = 60;
 #endif
+
+
 
 static int __maybe_unused neg_one = -1;
 
@@ -1280,6 +1283,16 @@ static struct ctl_table kern_table[] = {
 		.extra2		= &one,
 	},
 #endif
+	/* Android 16 BPF uname spoofing toggle */
+	{
+		.procname	= "uname_spoof",
+		.data		= &uname_spoof_enable,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &zero,
+		.extra2		= &one,
+	},
 	{ }
 };
 
