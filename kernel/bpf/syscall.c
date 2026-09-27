@@ -513,7 +513,7 @@ static int map_create(union bpf_attr *attr)
 {
 	int numa_node = bpf_map_attr_numa_node(attr);
 	struct bpf_map *map;
-	int f_flags;
+	int f_flags = 0;
 	int err;
 
 	err = CHECK_ATTR(BPF_MAP_CREATE);
@@ -523,17 +523,10 @@ static int map_create(union bpf_attr *attr)
 	if (attr->numa_node != numa_node)
 		return -EINVAL;
 
-	/* Inisialisasi f_flags dari map_flags (handle BPF_F_RDONLY/WRONLY) */
-	f_flags = bpf_get_file_flag(attr->map_flags);
-	if (f_flags < 0)
-		return f_flags;
-
 	/* find map type and init map: hashtable vs rbtree vs bloom vs ... */
 	map = find_and_alloc_map(attr);
 	if (IS_ERR(map))
 		return PTR_ERR(map);
-
-	/* (tidak ada orig_flags apapun di sini) */
 
 	err = bpf_obj_name_cpy(map->name, attr->map_name);
 	if (err)
