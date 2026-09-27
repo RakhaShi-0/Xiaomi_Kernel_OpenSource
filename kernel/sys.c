@@ -1259,7 +1259,7 @@ static int override_release(char __user *release, size_t len)
  * kernel asli 4.19.191, sehingga boot tetap aman.
  */
 /* Tambahkan variabel global ini */
-static int uname_spoof_enable __read_mostly = 0;
+int uname_spoof_enable __read_mostly = 0;
 
 static const char * const uname_spoof_targets[] = {
     "netbpfload",
