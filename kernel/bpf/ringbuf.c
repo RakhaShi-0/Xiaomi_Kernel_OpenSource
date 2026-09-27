@@ -195,7 +195,6 @@ static int ringbuf_map_get_next_key(struct bpf_map *map, void *key,
 {
 	return -ENOTSUPP;
 }
-
 /*
  * mmap() support.
  *
@@ -203,15 +202,15 @@ static int ringbuf_map_get_next_key(struct bpf_map *map, void *key,
  *
  *   fd = bpf(BPF_MAP_CREATE, ...BPF_MAP_TYPE_RINGBUF...);
  *
- *   /* consumer page: read position written by consumer */
+ *   // consumer page: read position written by consumer
  *   consumer = mmap(NULL, PAGE_SIZE,
  *                   PROT_READ | PROT_WRITE, MAP_SHARED, fd,
- *                   0 * PAGE_SIZE);   /* pgoff = 0 */
+ *                   0 * PAGE_SIZE);   // pgoff = 0
  *
- *   /* producer page + data (twice for wraparound): written by kernel */
+ *   // producer page + data (twice for wraparound): written by kernel
  *   producer = mmap(NULL, PAGE_SIZE + 2 * ring_size,
  *                   PROT_READ, MAP_SHARED, fd,
- *                   1 * PAGE_SIZE);   /* pgoff = 1 */
+ *                   1 * PAGE_SIZE);   // pgoff = 1
  */
 static int ringbuf_map_mmap(struct bpf_map *map, struct vm_area_struct *vma)
 {
