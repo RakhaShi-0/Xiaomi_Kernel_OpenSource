@@ -907,7 +907,7 @@ void nvt_ts_wakeup_gesture_report(uint8_t gesture_id, uint8_t *data)
 		return;
 	}
 
-	/* NVT_LOG("gesture_id = %d\n", gesture_id); */
+	NVT_LOG("gesture_id = %d\n", gesture_id); 
 
 	switch (gesture_id) {
 	case GESTURE_WORD_C:
