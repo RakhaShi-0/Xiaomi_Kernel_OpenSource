@@ -1258,47 +1258,53 @@ static int override_release(char __user *release, size_t len)
  * Semua proses lain (termasuk seluruh daemon sistem) melihat
  * kernel asli 4.19.191, sehingga boot tetap aman.
  */
+/* Tambahkan variabel global ini */
+static int uname_spoof_enable __read_mostly = 0;
+
 static const char * const uname_spoof_targets[] = {
-	"cat",		/* isi satu per satu untuk pengujian */
-	"netbpfload",
+    "netbpfload",
+    "cat",    /* untuk testing */
 };
 
 bool uname_should_spoof(void)
 {
-	int i;
+    int i;
 
-	for (i = 0; i < ARRAY_SIZE(uname_spoof_targets); i++) {
-		if (!uname_spoof_targets[i][0])
-			continue;
-		if (!strncmp(current->comm, uname_spoof_targets[i], TASK_COMM_LEN))
-			return true;
-	}
-	return false;
+    /* Jika saklar mati, langsung return false */
+    if (!uname_spoof_enable)
+        return false;
+
+    for (i = 0; i < ARRAY_SIZE(uname_spoof_targets); i++) {
+        if (!uname_spoof_targets[i][0])
+            continue;
+        if (!strncmp(current->comm, uname_spoof_targets[i], TASK_COMM_LEN))
+            return true;
+    }
+    return false;
 }
-EXPORT_SYMBOL(uname_should_spoof);
 
 SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
 {
-	struct new_utsname tmp;
+    struct new_utsname tmp;
 
-	down_read(&uts_sem);
-	memcpy(&tmp, utsname(), sizeof(tmp));
-	up_read(&uts_sem);
-	if (uname_should_spoof()) {
-		char rel[sizeof(tmp.release)];
-		const char *suffix = strchr(tmp.release, '-');
+    down_read(&uts_sem);
+    memcpy(&tmp, utsname(), sizeof(tmp));
+    up_read(&uts_sem);
 
-		scnprintf(rel, sizeof(rel), "5.4.191%s", suffix ? suffix : "");
-		memcpy(tmp.release, rel, sizeof(tmp.release));
-	}
-	if (copy_to_user(name, &tmp, sizeof(tmp)))
-		return -EFAULT;
+    if (uname_should_spoof()) {
+        char rel[sizeof(tmp.release)];
+        const char *suffix = strchr(tmp.release, '-');
+        scnprintf(rel, sizeof(rel), "5.4.191%s", suffix ? suffix : "");
+        memcpy(tmp.release, rel, sizeof(tmp.release));
+    }
 
-	if (override_release(name->release, sizeof(name->release)))
-		return -EFAULT;
-	if (override_architecture(name))
-		return -EFAULT;
-	return 0;
+    if (copy_to_user(name, &tmp, sizeof(tmp)))
+        return -EFAULT;
+    if (override_release(name->release, sizeof(name->release)))
+        return -EFAULT;
+    if (override_architecture(name))
+        return -EFAULT;
+    return 0;
 }
 
 #ifdef __ARCH_WANT_SYS_OLD_UNAME
