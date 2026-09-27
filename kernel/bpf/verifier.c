@@ -189,6 +189,7 @@ struct bpf_call_arg_meta {
 	int regno;
 	int access_size;
 	u64 msize_max_value;
+	u64 mem_size;
 };
 
 static DEFINE_MUTEX(bpf_verifier_lock);
@@ -261,6 +262,8 @@ static const char * const reg_type_str[] = {
 	[PTR_TO_PACKET]		= "pkt",
 	[PTR_TO_PACKET_META]	= "pkt_meta",
 	[PTR_TO_PACKET_END]	= "pkt_end",
+	[PTR_TO_MEM]		= "mem",
+	[PTR_TO_MEM_OR_NULL]	= "mem_or_null",
 };
 
 static void print_liveness(struct bpf_verifier_env *env,
@@ -2020,10 +2023,6 @@ static int check_func_arg(struct bpf_verifier_env *env, u32 regno,
 			return err;
 	} else if (arg_type_is_mem_ptr(arg_type)) {
 		expected_type = PTR_TO_STACK;
-		/* One exception here. In case function allows for NULL to be
-		 * passed in as argument, it's a SCALAR_VALUE type. Final test
-		 * happens during stack boundary checking.
-		 */
 		if (register_is_null(reg) &&
 		    arg_type == ARG_PTR_TO_MEM_OR_NULL)
 			/* final test in check_stack_boundary() */;
@@ -2032,6 +2031,26 @@ static int check_func_arg(struct bpf_verifier_env *env, u32 regno,
 			 type != expected_type)
 			goto err_type;
 		meta->raw_mode = arg_type == ARG_PTR_TO_UNINIT_MEM;
+	} else if (arg_type == ARG_PTR_TO_ALLOC_MEM ||
+		arg_type == ARG_PTR_TO_ALLOC_MEM_OR_NULL) {
+		if (register_is_null(reg) &&
+		    arg_type == ARG_PTR_TO_ALLOC_MEM_OR_NULL)
+			/* final check in check_helper_mem_access() */;
+		else if (reg->type != PTR_TO_MEM &&
+			 reg->type != PTR_TO_MEM_OR_NULL) {
+			expected_type = PTR_TO_MEM;
+			goto err_type;
+		}
+		if (arg_type == ARG_PTR_TO_ALLOC_MEM &&
+		    reg->type == PTR_TO_MEM_OR_NULL) {
+			verbose(env, "possible NULL pointer passed to helper\n");
+			return -EACCES;
+		}
+	} else if (arg_type == ARG_CONST_ALLOC_SIZE_OR_ZERO) {
+		expected_type = SCALAR_VALUE;
+		if (type != expected_type)
+			goto err_type;
+		meta->mem_size = reg->umax_value;
 	} else {
 		verbose(env, "unsupported arg_type %d\n", arg_type);
 		return -EFAULT;
@@ -2189,6 +2208,14 @@ static int check_map_func_compatibility(struct bpf_verifier_env *env,
 		if (func_id != BPF_FUNC_sk_select_reuseport)
 			goto error;
 		break;
+		case BPF_MAP_TYPE_RINGBUF:
+		if (func_id != BPF_FUNC_ringbuf_output &&
+		    func_id != BPF_FUNC_ringbuf_reserve &&
+		    func_id != BPF_FUNC_ringbuf_submit &&
+		    func_id != BPF_FUNC_ringbuf_discard &&
+		    func_id != BPF_FUNC_ringbuf_query)
+			goto error;
+		break;
 	default:
 		break;
 	}
@@ -2242,6 +2269,14 @@ static int check_map_func_compatibility(struct bpf_verifier_env *env,
 		break;
 	case BPF_FUNC_sk_select_reuseport:
 		if (map->map_type != BPF_MAP_TYPE_REUSEPORT_SOCKARRAY)
+			goto error;
+		break;
+	case BPF_FUNC_ringbuf_output:
+	case BPF_FUNC_ringbuf_reserve:
+	case BPF_FUNC_ringbuf_submit:
+	case BPF_FUNC_ringbuf_discard:
+	case BPF_FUNC_ringbuf_query:
+		if (map->map_type != BPF_MAP_TYPE_RINGBUF)
 			goto error;
 		break;
 	default:
@@ -2632,6 +2667,11 @@ static int check_helper_call(struct bpf_verifier_env *env, int func_id, int insn
 		}
 		regs[BPF_REG_0].map_ptr = meta.map_ptr;
 		regs[BPF_REG_0].id = ++env->id_gen;
+	} else if (fn->ret_type == RET_PTR_TO_ALLOC_MEM_OR_NULL) {
+		mark_reg_known_zero(env, regs, BPF_REG_0);
+		regs[BPF_REG_0].type = PTR_TO_MEM_OR_NULL;
+		regs[BPF_REG_0].id = ++env->id_gen;
+		regs[BPF_REG_0].mem_size = meta.mem_size;
 	} else {
 		verbose(env, "unknown return type %d of func %s#%d\n",
 			fn->ret_type, func_id_name(func_id), func_id);
@@ -4768,6 +4808,11 @@ static bool regsafe(struct bpf_reg_state *rold, struct bpf_reg_state *rcur,
 		/* new val must satisfy old val knowledge */
 		return range_within(rold, rcur) &&
 		       tnum_in(rold->var_off, rcur->var_off);
+	case PTR_TO_MEM:
+	case PTR_TO_MEM_OR_NULL:
+		if (rold->type != rcur->type)
+			return false;
+		return rold->mem_size == rcur->mem_size;
 	case PTR_TO_CTX:
 	case CONST_PTR_TO_MAP:
 	case PTR_TO_PACKET_END:
