@@ -112,6 +112,7 @@ static struct bpf_map *find_and_alloc_map(union bpf_attr *attr)
 	const struct bpf_map_ops *ops;
 	u32 type = attr->map_type;
 	struct bpf_map *map;
+	u32 orig_flags; /* [TAMBAHAN] Simpan flag asli */
 	int err;
 
 	if (type >= ARRAY_SIZE(bpf_map_types))
@@ -121,6 +122,11 @@ static struct bpf_map *find_and_alloc_map(union bpf_attr *attr)
 	if (!ops)
 		return ERR_PTR(-EINVAL);
 
+	/* [TAMBAHAN] Simpan flag asli dan hapus flag modern (seperti 128)
+	 * agar kernel 4.19 tidak menolak alokasi map */
+	orig_flags = attr->map_flags;
+	attr->map_flags &= 0x7F;
+
 	if (ops->map_alloc_check) {
 		err = ops->map_alloc_check(attr);
 		if (err)
@@ -128,9 +134,16 @@ static struct bpf_map *find_and_alloc_map(union bpf_attr *attr)
 	}
 	if (attr->map_ifindex)
 		ops = &bpf_map_offload_ops;
+	
 	map = ops->map_alloc(attr);
+	
 	if (IS_ERR(map))
 		return map;
+
+	/* [TAMBAHAN] Kembalikan flag asli ke struct map agar Android 16
+	 * (bpfloader) tetap melihat flag 128 saat memverifikasi map */
+	map->map_flags = orig_flags;
+
 	map->ops = ops;
 	map->map_type = type;
 	return map;
