@@ -2182,16 +2182,27 @@ static int bpf_map_get_info_by_fd(struct file *file,
 	err = bpf_check_uarg_tail_zero(uinfo, sizeof(info), info_len);
 	if (err)
 		return err;
-	info_len = min_t(u32, sizeof(info), info_len);
 
+	info_len = min_t(u32, sizeof(info), info_len);
 	memset(&info, 0, sizeof(info));
+
 	info.type = map->map_type;
 	info.id = map->id;
 	info.key_size = map->key_size;
 	info.value_size = map->value_size;
 	info.max_entries = map->max_entries;
 	info.map_flags = map->map_flags;
+	
 	memcpy(info.name, map->name, sizeof(map->name));
+
+	/* --- [TAMBAHAN HACK] BYPASS GSI ANDROID 16 --- 
+	 * Jika vendor lama membuat map jaringan dengan flag 0, 
+	 * kita bohongi Android 16 agar melihatnya sebagai flag 128 
+	 * (BPF_F_RDONLY_PROG) supaya tidak crash mismatch. */
+	if (info.map_flags == 0 && strstr(info.name, "tether_")) {
+		info.map_flags = 128;
+	}
+	/* --------------------------------------------- */
 
 	if (map->btf) {
 		info.btf_id = btf_id(map->btf);
