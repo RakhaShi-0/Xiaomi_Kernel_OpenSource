@@ -1261,9 +1261,6 @@ static int override_release(char __user *release, size_t len)
 static const char * const uname_spoof_targets[] = {
 	"cat",		/* isi satu per satu untuk pengujian */
 	"netbpfload",
-	"netd",
-	"bpfloader",
-	"toybox"
 };
 
 bool uname_should_spoof(void)
