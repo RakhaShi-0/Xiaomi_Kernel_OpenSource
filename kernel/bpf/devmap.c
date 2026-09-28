@@ -54,7 +54,8 @@
 
 /* Tambahkan 128 (BPF_F_RDONLY_PROG) agar Android 16 bisa membuat map ini */
 #define DEV_CREATE_FLAG_MASK \
-	(BPF_F_NUMA_NODE | BPF_F_RDONLY | BPF_F_WRONLY | 128)
+	(BPF_F_NUMA_NODE | BPF_F_RDONLY | BPF_F_WRONLY | \
+	 BPF_F_RDONLY_PROG | BPF_F_WRONLY_PROG)
 
 #define DEV_MAP_BULK_SIZE 16
 struct xdp_bulk_queue {
