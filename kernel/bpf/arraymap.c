@@ -22,7 +22,8 @@
 #include "map_in_map.h"
 
 #define ARRAY_CREATE_FLAG_MASK \
-	(BPF_F_NUMA_NODE | BPF_F_RDONLY | BPF_F_WRONLY | 128 | 256)
+	(BPF_F_NUMA_NODE | BPF_F_RDONLY | BPF_F_WRONLY | \
+	 BPF_F_RDONLY_PROG | BPF_F_WRONLY_PROG)
 
 static void bpf_array_free_percpu(struct bpf_array *array)
 {
