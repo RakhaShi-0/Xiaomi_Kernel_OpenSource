@@ -21,9 +21,10 @@
 #include "bpf_lru_list.h"
 #include "map_in_map.h"
 
-#define HTAB_CREATE_FLAG_MASK						\
-	(BPF_F_NO_PREALLOC | BPF_F_NO_COMMON_LRU | BPF_F_NUMA_NODE |	\
-	 BPF_F_RDONLY | BPF_F_WRONLY | 128 | 256)
+#define HTAB_CREATE_FLAG_MASK \
+	(BPF_F_NO_PREALLOC | BPF_F_NO_COMMON_LRU | BPF_F_NUMA_NODE | \
+	 BPF_F_RDONLY | BPF_F_WRONLY | BPF_F_ZERO_SEED | \
+	 BPF_F_RDONLY_PROG | BPF_F_WRONLY_PROG)
 
 struct bucket {
 	struct hlist_nulls_head head;
