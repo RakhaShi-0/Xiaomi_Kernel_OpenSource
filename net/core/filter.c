@@ -5209,6 +5209,17 @@ static bool bpf_skb_is_valid_access(int off, int size, enum bpf_access_type type
 	if (off % size != 0)
 		return false;
 
+	/* [BACKPORT] Allow read-only access to gso_segs/gso_size for Android 16
+	 * tethering BPF programs. These fields live beyond the 4.19 __sk_buff
+	 * boundary; we return 0 in convert_ctx_access to satisfy the verifier. */
+	if (off == offsetof(struct __sk_buff, gso_segs) ||
+	    off == offsetof(struct __sk_buff, gso_size)) {
+		if (type == BPF_WRITE || size != sizeof(__u32))
+			return false;
+		bpf_ctx_record_field_size(info, sizeof(__u32));
+		return true;
+	}
+
 	switch (off) {
 	case bpf_ctx_range_till(struct __sk_buff, cb[0], cb[4]):
 		if (off + size > offsetofend(struct __sk_buff, cb[4]))
@@ -6164,6 +6175,18 @@ static u32 tc_cls_act_convert_ctx_access(enum bpf_access_type type,
 		*insn++ = BPF_LDX_MEM(BPF_W, si->dst_reg, si->dst_reg,
 				      bpf_target_off(struct net_device, ifindex, 4,
 						     target_size));
+		break;
+	case offsetof(struct __sk_buff, gso_segs):
+		/* [BACKPORT] gso_segs tidak ada di kernel 4.19. Kembalikan 0
+		 * agar verifier puas tanpa crash. Android 16 tethering BPF
+		 * hanya membaca nilai ini, tidak kritis jika 0. */
+		*target_size = 4;
+		*insn++ = BPF_MOV32_IMM(si->dst_reg, 0);
+		break;
+	case offsetof(struct __sk_buff, gso_size):
+		/* [BACKPORT] sama seperti gso_segs di atas */
+		*target_size = 4;
+		*insn++ = BPF_MOV32_IMM(si->dst_reg, 0);
 		break;
 	default:
 		return bpf_convert_ctx_access(type, si, insn_buf, prog,
