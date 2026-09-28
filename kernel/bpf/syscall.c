@@ -114,6 +114,16 @@ static struct bpf_map *find_and_alloc_map(union bpf_attr *attr)
 	struct bpf_map *map;
 	int err;
 
+	/* --- HACK ANDROID 16 GSI --- 
+	 * bpfloader Android 16 diam-diam menghapus flag 128 untuk kernel 4.19,
+	 * tapi kemudian dia sendiri komplain karena flag-nya tidak 128 saat verifikasi.
+	 * Kita paksa kembalikan flag 128 khusus untuk tether_dev_map ini.
+	 */
+	if (type == 25 && attr->key_size == 4 && attr->value_size == 4 && attr->max_entries == 64) {
+		attr->map_flags |= 128; /* Paksa masukkan kembali BPF_F_RDONLY_PROG */
+	}
+	/* --------------------------- */
+
 	if (type >= ARRAY_SIZE(bpf_map_types))
 		return ERR_PTR(-EINVAL);
 	type = array_index_nospec(type, ARRAY_SIZE(bpf_map_types));
@@ -128,9 +138,12 @@ static struct bpf_map *find_and_alloc_map(union bpf_attr *attr)
 	}
 	if (attr->map_ifindex)
 		ops = &bpf_map_offload_ops;
+	
 	map = ops->map_alloc(attr);
+	
 	if (IS_ERR(map))
 		return map;
+
 	map->ops = ops;
 	map->map_type = type;
 	return map;
