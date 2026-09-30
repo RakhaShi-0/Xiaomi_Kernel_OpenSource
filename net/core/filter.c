@@ -5222,9 +5222,9 @@ static bool bpf_skb_is_valid_access(int off, int size, enum bpf_access_type type
 		return true;
 		
 	/* Field dengan ukuran 8 bytes (pointer / __u64) */
-	case bpf_ctx_range(struct __sk_buff, flow_keys):
-	case bpf_ctx_range(struct __sk_buff, sk):
-	case bpf_ctx_range(struct __sk_buff, tstamp):
+	case offsetof(struct __sk_buff, flow_keys):
+	case offsetof(struct __sk_buff, sk):
+	case offsetof(struct __sk_buff, tstamp):
 		if (type == BPF_WRITE || size != sizeof(__u64))
 			return false;
 		bpf_ctx_record_field_size(info, sizeof(__u64));
