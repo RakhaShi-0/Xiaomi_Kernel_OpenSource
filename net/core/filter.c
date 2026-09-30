@@ -4912,12 +4912,44 @@ sk_filter_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 	}
 }
 
+/* [BACKPORT] Dummy helpers untuk bypass Android 16 */
+BPF_CALL_1(bpf_sk_fullsock_dummy, void *, sk)
+{
+	return 0; /* Selalu return NULL */
+}
+static const struct bpf_func_proto bpf_sk_fullsock_proto_dummy = {
+	.func		= bpf_sk_fullsock_dummy,
+	.gpl_only	= false,
+	.ret_type	= RET_PTR_TO_SOCKET_OR_NULL,
+	.arg1_type	= ARG_ANYTHING,
+};
+
+BPF_CALL_1(bpf_tcp_sock_dummy, void *, sk)
+{
+	return 0;
+}
+static const struct bpf_func_proto bpf_tcp_sock_proto_dummy = {
+	.func		= bpf_tcp_sock_dummy,
+	.gpl_only	= false,
+	.ret_type	= RET_PTR_TO_SOCKET_OR_NULL,
+	.arg1_type	= ARG_ANYTHING,
+};
+
+/*==============*/
+
 static const struct bpf_func_proto *
 cg_skb_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
 	switch (func_id) {
 	case BPF_FUNC_get_local_storage:
 		return &bpf_get_local_storage_proto;
+	/* [BACKPORT] Daftarkan dummy helper 95 dan 96 */
+	case 95: /* bpf_sk_fullsock */
+		return &bpf_sk_fullsock_proto_dummy;
+	case 96: /* bpf_tcp_sock */
+		return &bpf_tcp_sock_proto_dummy;
+	case BPF_FUNC_sk_lookup_tcp:
+		return &bpf_sk_lookup_tcp_proto;
 	default:
 		return sk_filter_func_proto(func_id, prog);
 	}
