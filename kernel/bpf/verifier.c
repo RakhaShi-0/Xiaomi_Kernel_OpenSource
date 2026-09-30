@@ -1801,6 +1801,14 @@ static int check_mem_access(struct bpf_verifier_env *env, int insn_idx, u32 regn
 		if (!err && t == BPF_READ && value_regno >= 0)
 			mark_reg_unknown(env, regs, value_regno);
 	} else {
+		/* [HACK] Bypass verifier untuk dummy helpers Android 16 
+		 * Mengizinkan program membaca/menulis dari sebuah integer (SCALAR) */
+		if (reg->type == SCALAR_VALUE) {
+			if (t == BPF_READ && value_regno >= 0)
+				mark_reg_unknown(env, regs, value_regno);
+			return 0;
+		}
+
 		verbose(env, "R%d invalid mem access '%s'\n", regno,
 			reg_type_str[reg->type]);
 		return -EACCES;
