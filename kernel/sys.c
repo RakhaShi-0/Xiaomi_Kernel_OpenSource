@@ -1253,17 +1253,17 @@ static int override_release(char __user *release, size_t len)
 
 /*
  * Spoof selektif berbasis WHITELIST (bukan exclude).
- * Default: TIDAK ADA yang di-spoof. Hanya proses yang namanya
- * ada di uname_spoof_targets[] yang melihat versi 5.4.191.
- * Semua proses lain (termasuk seluruh daemon sistem) melihat
- * kernel asli 4.19.191, sehingga boot tetap aman.
+ * Default: uname_spoof_enable = 1 agar aktif sejak boot.
+ * Hanya proses yang namanya ada di uname_spoof_targets[] yang melihat versi 5.4.191.
  */
-/* Tambahkan variabel global ini */
-int uname_spoof_enable __read_mostly = 0;
+int uname_spoof_enable __read_mostly = 1;
 
 static const char * const uname_spoof_targets[] = {
     "netbpfload",
-    "cat",    /* untuk testing */
+    "netd",                  /* PENTING: Untuk bypass libnetd_updatable di Android 16 */
+    "system_server",         /* Memastikan Framework Connectivity Service melihat 5.4 */
+    "main",                  /* Thread/process init untuk beberapa service updatable APEX */
+    "cat",                   /* Untuk testing CLI */
 };
 
 bool uname_should_spoof(void)
