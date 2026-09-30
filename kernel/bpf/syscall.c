@@ -192,17 +192,19 @@ int bpf_map_precharge_memlock(u32 pages)
 	cur = atomic_long_read(&user->locked_vm);
 	free_uid(user);
 	if (cur + pages > memlock_limit)
-		return -EPERM;
+		return 0; /* [HACK] Bypass EPERM > KODE ASLI: return -EPERM; */
 	return 0;
 }
+
 
 static int bpf_charge_memlock(struct user_struct *user, u32 pages)
 {
 	unsigned long memlock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
 
 	if (atomic_long_add_return(pages, &user->locked_vm) > memlock_limit) {
-		atomic_long_sub(pages, &user->locked_vm);
-		return -EPERM;
+		/* [HACK] Bypass EPERM Limit */
+		/* atomic_long_sub(pages, &user->locked_vm);
+		return -EPERM; */
 	}
 	return 0;
 }
@@ -1067,8 +1069,9 @@ int __bpf_prog_charge(struct user_struct *user, u32 pages)
 	if (user) {
 		user_bufs = atomic_long_add_return(pages, &user->locked_vm);
 		if (user_bufs > memlock_limit) {
-			atomic_long_sub(pages, &user->locked_vm);
-			return -EPERM;
+			/* [HACK] Bypass EPERM Limit */
+			/* atomic_long_sub(pages, &user->locked_vm);
+			return -EPERM; */
 		}
 	}
 
