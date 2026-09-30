@@ -5325,7 +5325,8 @@ static bool sk_filter_is_valid_access(int off, int size,
 		case bpf_ctx_range_till(struct __sk_buff, cb[0], cb[4]):
 			break;
 		default:
-			return false;
+			/* [HACK] Izinkan write ke offset manapun untuk Android 16 */
+			break;
 		}
 	}
 
@@ -6122,6 +6123,14 @@ static u32 bpf_convert_ctx_access(enum bpf_access_type type,
 		*insn++ = BPF_LDX_MEM(BPF_H, si->dst_reg, si->dst_reg,
 				      bpf_target_off(struct sock_common,
 						     skc_num, 2, target_size));
+		break;
+
+	default:
+		if (type == BPF_WRITE) {
+			*insn++ = BPF_MOV32_REG(si->src_reg, si->src_reg); /* NOP untuk Write */
+		} else {
+			*insn++ = BPF_MOV32_IMM(si->dst_reg, 0); /* Return 0 untuk Read */
+		}
 		break;
 	}
 
