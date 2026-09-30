@@ -1402,8 +1402,15 @@ static int bpf_prog_load(union bpf_attr *attr)
 	char license[128];
 	bool is_gpl;
 
+	/* [HACK] Bypass tipe CGROUP_SOCKOPT (ID 25) yang tidak didukung kernel 4.19 */
+	if (type == 25) { 
+		attr->prog_type = BPF_PROG_TYPE_CGROUP_SKB;
+		type = BPF_PROG_TYPE_CGROUP_SKB;
+	}
+
 	if (CHECK_ATTR(BPF_PROG_LOAD))
 		return -EINVAL;
+// ... lanjutannya
 
 	if (attr->prog_flags & ~BPF_F_STRICT_ALIGNMENT)
 		return -EINVAL;
@@ -1643,8 +1650,13 @@ static int bpf_prog_attach(const union bpf_attr *attr)
 	struct bpf_prog *prog;
 	int ret;
 
+	/* [HACK] Pura-pura sukses saat Android mencoba attach getsockopt/setsockopt */
+	if (attr->attach_type == 21 || attr->attach_type == 22)
+		return 0;
+
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
+// ... lanjutannya
 
 	if (CHECK_ATTR(BPF_PROG_ATTACH))
 		return -EINVAL;
