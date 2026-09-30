@@ -5209,22 +5209,25 @@ static bool bpf_skb_is_valid_access(int off, int size, enum bpf_access_type type
 	if (off % size != 0)
 		return false;
 
-	/* [BACKPORT] Allow read-only access to gso_segs/gso_size for Android 16
-	 * tethering BPF programs. These fields live beyond the 4.19 __sk_buff
-	 * boundary; we return 0 in convert_ctx_access to satisfy the verifier. */
-	/* [BACKPORT] Android 16 tethering: read-only, 4 byte. Nilai dikembalikan
-	 * 0 oleh bpf_convert_ctx_access(). */
+	/* [BACKPORT] Izinkan akses baca untuk field baru Android 14+ agar
+	 * bpfloader tidak ditolak oleh verifier. Kita akan kembalikan 0. */
 	switch (off) {
-	case bpf_ctx_range(struct __sk_buff, flow_keys):
-	case bpf_ctx_range(struct __sk_buff, sk):
-	case bpf_ctx_range(struct __sk_buff, tstamp):
-		return false;
+	/* Field dengan ukuran 4 bytes (__u32) */
 	case offsetof(struct __sk_buff, wire_len):
 	case offsetof(struct __sk_buff, gso_segs):
 	case offsetof(struct __sk_buff, gso_size):
 		if (type == BPF_WRITE || size != sizeof(__u32))
 			return false;
 		bpf_ctx_record_field_size(info, sizeof(__u32));
+		return true;
+		
+	/* Field dengan ukuran 8 bytes (pointer / __u64) */
+	case bpf_ctx_range(struct __sk_buff, flow_keys):
+	case bpf_ctx_range(struct __sk_buff, sk):
+	case bpf_ctx_range(struct __sk_buff, tstamp):
+		if (type == BPF_WRITE || size != sizeof(__u64))
+			return false;
+		bpf_ctx_record_field_size(info, sizeof(__u64));
 		return true;
 	}
 
@@ -6034,12 +6037,20 @@ static u32 bpf_convert_ctx_access(enum bpf_access_type type,
 #endif
 		break;
 
-	/* [BACKPORT] Android 16 tethering */
+		/* [BACKPORT] Kembalikan 0 untuk field Android 16 (4 bytes) */
 	case offsetof(struct __sk_buff, wire_len):
 	case offsetof(struct __sk_buff, gso_segs):
 	case offsetof(struct __sk_buff, gso_size):
 		*target_size = 4;
 		*insn++ = BPF_MOV32_IMM(si->dst_reg, 0);
+		break;
+
+	/* [BACKPORT] Kembalikan 0 untuk field Android 16 (8 bytes) */
+	case offsetof(struct __sk_buff, flow_keys):
+	case offsetof(struct __sk_buff, sk):
+	case offsetof(struct __sk_buff, tstamp):
+		*target_size = 8;
+		*insn++ = BPF_MOV64_IMM(si->dst_reg, 0);
 		break;
 	
 	case offsetof(struct __sk_buff, remote_port):
