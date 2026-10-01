@@ -1256,21 +1256,23 @@ static int override_release(char __user *release, size_t len)
  * Default: uname_spoof_enable = 1 agar aktif sejak boot.
  * Hanya proses yang namanya ada di uname_spoof_targets[] yang melihat versi 5.4.191.
  */
+/*
+ * Spoof selektif berbasis WHITELIST presisi tinggi.
+ * Default: uname_spoof_enable = 1.
+ * Hanya memalsukan versi jika prosesnya adalah netbpfload atau netd.
+ */
 int uname_spoof_enable __read_mostly = 1;
 
 static const char * const uname_spoof_targets[] = {
     "netbpfload",
-    "netd",                  /* PENTING: Untuk bypass libnetd_updatable di Android 16 */
-    "system_server",         /* Memastikan Framework Connectivity Service melihat 5.4 */
-    "main",                  /* Thread/process init untuk beberapa service updatable APEX */
-    "cat",                   /* Untuk testing CLI */
+    "netd",
+    "cat", /* untuk testing */
 };
 
 bool uname_should_spoof(void)
 {
     int i;
 
-    /* Jika saklar mati, langsung return false */
     if (!uname_spoof_enable)
         return false;
 
@@ -1294,6 +1296,11 @@ SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
     if (uname_should_spoof()) {
         char rel[sizeof(tmp.release)];
         const char *suffix = strchr(tmp.release, '-');
+        
+        /* 
+         * Spoof dengan suffix versi kernel asli jika ada.
+         * Misalnya jika asli "4.19.191-main", di-spoof jadi "5.4.191-main"
+         */
         scnprintf(rel, sizeof(rel), "5.4.191%s", suffix ? suffix : "");
         memcpy(tmp.release, rel, sizeof(tmp.release));
     }
