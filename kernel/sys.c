@@ -1261,10 +1261,14 @@ static int override_release(char __user *release, size_t len)
  * Default: uname_spoof_enable = 1.
  * Hanya memalsukan versi jika prosesnya adalah netbpfload atau netd.
  */
-int uname_spoof_enable __read_mostly = 1;
+int uname_spoof_enable __read_mostly = 0;
 
 static const char * const uname_spoof_targets[] = {
     "netbpfload",
+    "netd",                  /* PENTING: Untuk bypass libnetd_updatable di Android 16 */
+    "system_server",         /* Memastikan Framework Connectivity Service melihat 5.4 */
+    "main",                  /* Thread/process init untuk beberapa service updatable APEX */
+    "cat",                   /* Untuk testing CLI */
     "netd",
     "cat", /* untuk testing */
 };
