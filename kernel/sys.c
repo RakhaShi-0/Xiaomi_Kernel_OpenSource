@@ -1275,18 +1275,7 @@ static const char * const uname_spoof_targets[] = {
 
 bool uname_should_spoof(void)
 {
-    int i;
-
-    if (!uname_spoof_enable)
-        return false;
-
-    for (i = 0; i < ARRAY_SIZE(uname_spoof_targets); i++) {
-        if (!uname_spoof_targets[i][0])
-            continue;
-        if (!strncmp(current->comm, uname_spoof_targets[i], TASK_COMM_LEN))
-            return true;
-    }
-    return false;
+    return false; // Mematikan fitur spoofing secara paksa dan permanen
 }
 
 SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
