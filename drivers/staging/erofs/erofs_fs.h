@@ -21,7 +21,7 @@
  * Any bits that aren't in EROFS_ALL_REQUIREMENTS should be
  * incompatible with this kernel version.
  */
-#define EROFS_ALL_REQUIREMENTS  0
+#define EROFS_ALL_REQUIREMENTS  (~0)
 
 struct erofs_super_block {
 /*  0 */__le32 magic;           /* in the little endian */
