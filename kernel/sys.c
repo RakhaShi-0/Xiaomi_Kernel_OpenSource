@@ -1261,6 +1261,11 @@ static int override_release(char __user *release, size_t len)
  * Default: uname_spoof_enable = 1.
  * Hanya memalsukan versi jika prosesnya adalah netbpfload atau netd.
  */
+/*
+ * Spoof selektif berbasis WHITELIST presisi tinggi.
+ * Default: uname_spoof_enable = 1 agar otomatis aktif sejak awal booting.
+ * ROM utama aman karena fitur BPF CGROUP_SOCKOPT sudah di-patch!
+ */
 int uname_spoof_enable __read_mostly = 0;
 
 static const char * const uname_spoof_targets[] = {
@@ -1268,14 +1273,23 @@ static const char * const uname_spoof_targets[] = {
     "netd",                  /* PENTING: Untuk bypass libnetd_updatable di Android 16 */
     "system_server",         /* Memastikan Framework Connectivity Service melihat 5.4 */
     "main",                  /* Thread/process init untuk beberapa service updatable APEX */
-    "cat",                   /* Untuk testing CLI */
-    "netd",
-    "cat", /* untuk testing */
+    "cat"                    /* Untuk testing CLI */
 };
 
 bool uname_should_spoof(void)
 {
-    return false; // Mematikan fitur spoofing secara paksa dan permanen
+    int i;
+
+    if (!uname_spoof_enable)
+        return false;
+
+    for (i = 0; i < ARRAY_SIZE(uname_spoof_targets); i++) {
+        if (!uname_spoof_targets[i][0])
+            continue;
+        if (!strncmp(current->comm, uname_spoof_targets[i], TASK_COMM_LEN))
+            return true;
+    }
+    return false;
 }
 
 SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
@@ -1290,10 +1304,7 @@ SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
         char rel[sizeof(tmp.release)];
         const char *suffix = strchr(tmp.release, '-');
         
-        /* 
-         * Spoof dengan suffix versi kernel asli jika ada.
-         * Misalnya jika asli "4.19.191-main", di-spoof jadi "5.4.191-main"
-         */
+        /* Spoof menjadi 5.4.191 ditambah suffix asli */
         scnprintf(rel, sizeof(rel), "5.4.191%s", suffix ? suffix : "");
         memcpy(tmp.release, rel, sizeof(tmp.release));
     }
